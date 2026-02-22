@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>AI Chatbot + Nearest Technician Matching</h2>
+<div class="chat-layout">
+  <div class="form-card">
+    <label>Describe your problem</label>
+    <textarea id="message" placeholder="Example: My fan is not working"></textarea>
+    <label>City</label>
+    <input id="city" placeholder="City name">
+    <div class="two-cols">
+      <input id="latitude" placeholder="Latitude (optional)">
+      <input id="longitude" placeholder="Longitude (optional)">
+    </div>
+    <button class="btn" id="analyzeBtn">Detect & Find Technician</button>
+  </div>
+  <div class="chat-panel">
+    <div id="chatOutput">Assistant is ready...</div>
+    <form method="post" action="{{ url_for('book_service') }}" id="bookingForm" class="hidden">
+      <input name="provider_id" id="provider_id" type="hidden">
+      <input name="issue" id="issue" type="hidden">
+      <input name="category" id="category" type="hidden">
+      <input name="city" id="book_city" type="hidden">
+      <input name="latitude" id="book_latitude" type="hidden">
+      <input name="longitude" id="book_longitude" type="hidden">
+      <label>Payment Method</label>
+      <select name="payment_mode">
+        <option value="UPI">UPI Payment</option>
+        <option value="Cash on Service">Cash on Service</option>
+      </select>
+      <button type="submit" class="btn">Confirm Service Booking</button>
+    </form>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

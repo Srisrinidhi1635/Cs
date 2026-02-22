@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Welcome, {{ current_user.name }}</h2>
+<p>Track your service requests and booking history.</p>
+<a class="btn" href="{{ url_for('chat') }}">Book a New Service</a>
+
+<h3>Booking History</h3>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Booking ID</th>
+      <th>Issue</th>
+      <th>Category</th>
+      <th>Technician</th>
+      <th>Status</th>
+      <th>Payment</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for booking in history %}
+      <tr>
+        <td>{{ booking.booking_code }}</td>
+        <td>{{ booking.issue_text }}</td>
+        <td>{{ booking.detected_category }}</td>
+        <td>{{ booking.provider.name if booking.provider else 'Pending' }}</td>
+        <td>{{ booking.status }}</td>
+        <td>{{ booking.payment_mode }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6">No bookings yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
