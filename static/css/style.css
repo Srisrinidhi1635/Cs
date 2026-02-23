@@ -56,3 +56,6 @@ th { background:#f0f7ff; }
   .hero { grid-template-columns:1fr; }
   .chat-layout { grid-template-columns:1fr; }
 }
+
+.voice-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.voice-status { font-size:.85rem; color:#406283; }
