@@ -66,19 +66,15 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     city = db.Column(db.String(80), nullable=True)
-    is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), default="user")  # user / worker / admin
 
-
-class Provider(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False)
-    category = db.Column(db.String(80), nullable=False)
-    city = db.Column(db.String(80), nullable=False)
+    # worker profile fields
+    service_category = db.Column(db.String(80), nullable=True)
     area = db.Column(db.String(120), nullable=True)
-    latitude = db.Column(db.Float, nullable=False)
-    longitude = db.Column(db.Float, nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
-    available = db.Column(db.Boolean, default=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    available = db.Column(db.Boolean, default=False)
     rating = db.Column(db.Float, default=4.5)
 
 
@@ -86,7 +82,7 @@ class Booking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     booking_code = db.Column(db.String(12), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    provider_id = db.Column(db.Integer, db.ForeignKey("provider.id"), nullable=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     issue_text = db.Column(db.String(300), nullable=False)
     detected_category = db.Column(db.String(80), nullable=False)
     city = db.Column(db.String(80), nullable=False)
@@ -97,8 +93,20 @@ class Booking(db.Model):
     status = db.Column(db.String(30), default="Assigned")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    user = db.relationship("User", backref="bookings")
-    provider = db.relationship("Provider", backref="bookings")
+    user = db.relationship("User", foreign_keys=[user_id], backref="bookings_as_user")
+    worker = db.relationship("User", foreign_keys=[worker_id], backref="bookings_as_worker")
+
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    booking_id = db.Column(db.Integer, db.ForeignKey("booking.id"), nullable=False)
+    message = db.Column(db.String(255), nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    worker = db.relationship("User", backref="worker_notifications")
+    booking = db.relationship("Booking", backref="notifications")
 
 
 @login_manager.user_loader
@@ -132,7 +140,7 @@ def parse_location(city: str, latitude: str | None, longitude: str | None):
         if city_norm in CITY_COORDS:
             lat, lon = CITY_COORDS[city_norm]
         else:
-            lat, lon = 20.5937, 78.9629  # fallback center
+            lat, lon = 20.5937, 78.9629
     return city_norm.title(), lat, lon
 
 
@@ -147,14 +155,15 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return radius * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 
-def find_nearest_provider(category: str, user_lat: float, user_lon: float):
-    providers = Provider.query.filter_by(category=category, available=True).all()
-    if not providers:
+def find_nearest_worker(category: str, user_lat: float, user_lon: float):
+    workers = User.query.filter_by(role="worker", service_category=category, available=True).all()
+    workers = [w for w in workers if w.latitude is not None and w.longitude is not None]
+    if not workers:
         return None, None
 
     nearest = min(
-        providers,
-        key=lambda p: haversine_distance(user_lat, user_lon, p.latitude, p.longitude),
+        workers,
+        key=lambda w: haversine_distance(user_lat, user_lon, w.latitude, w.longitude),
     )
     distance = haversine_distance(user_lat, user_lon, nearest.latitude, nearest.longitude)
     return nearest, round(distance, 2)
@@ -162,6 +171,13 @@ def find_nearest_provider(category: str, user_lat: float, user_lon: float):
 
 def generate_booking_code() -> str:
     return "BK" + "".join(random.choices(string.digits + string.ascii_uppercase, k=8))
+
+
+def require_role(*roles):
+    if not current_user.is_authenticated or current_user.role not in roles:
+        flash("You do not have permission to access this page.", "danger")
+        return False
+    return True
 
 
 @app.route("/")
@@ -172,6 +188,7 @@ def home():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
+        role = request.form.get("role", "user")
         name = request.form["name"].strip()
         email = request.form["email"].strip().lower()
         password = request.form["password"]
@@ -186,12 +203,30 @@ def register():
             email=email,
             password_hash=generate_password_hash(password),
             city=city,
+            role=role,
         )
+
+        if role == "worker":
+            category = request.form.get("service_category", "")
+            area = request.form.get("area", "")
+            phone = request.form.get("phone", "")
+            lat = request.form.get("latitude")
+            lon = request.form.get("longitude")
+            _, lat, lon = parse_location(city, lat, lon)
+            user.service_category = category
+            user.area = area
+            user.phone = phone
+            user.latitude = lat
+            user.longitude = lon
+            user.available = True
+            user.rating = 4.5
+
         db.session.add(user)
         db.session.commit()
         flash("Registration successful. Please login.", "success")
         return redirect(url_for("login"))
-    return render_template("register.html")
+
+    return render_template("register.html", categories=list(SERVICE_KEYWORDS.keys()))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -203,6 +238,8 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             flash("Welcome back!", "success")
+            if user.role == "worker":
+                return redirect(url_for("worker_dashboard"))
             return redirect(url_for("dashboard"))
         flash("Invalid credentials", "danger")
     return render_template("login.html")
@@ -219,13 +256,50 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    if current_user.role == "worker":
+        return redirect(url_for("worker_dashboard"))
     history = Booking.query.filter_by(user_id=current_user.id).order_by(Booking.created_at.desc()).all()
     return render_template("dashboard.html", history=history)
+
+
+@app.route("/worker-dashboard")
+@login_required
+def worker_dashboard():
+    if not require_role("worker"):
+        return redirect(url_for("dashboard"))
+
+    assigned_bookings = (
+        Booking.query.filter_by(worker_id=current_user.id)
+        .order_by(Booking.created_at.desc())
+        .all()
+    )
+    notifications = (
+        Notification.query.filter_by(worker_id=current_user.id)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+    return render_template("worker_dashboard.html", bookings=assigned_bookings, notifications=notifications)
+
+
+@app.route("/notification/<int:notification_id>/read", methods=["POST"])
+@login_required
+def mark_notification_read(notification_id: int):
+    notification = db.session.get(Notification, notification_id)
+    if not notification or notification.worker_id != current_user.id:
+        flash("Notification not found.", "danger")
+        return redirect(url_for("worker_dashboard"))
+
+    notification.is_read = True
+    db.session.commit()
+    return redirect(url_for("worker_dashboard"))
 
 
 @app.route("/chat")
 @login_required
 def chat():
+    if current_user.role == "worker":
+        flash("Workers should use worker dashboard to view assigned issues.", "info")
+        return redirect(url_for("worker_dashboard"))
     return render_template("chat.html", categories=list(SERVICE_KEYWORDS.keys()))
 
 
@@ -240,13 +314,13 @@ def chatbot_api():
 
     category = detect_service(message)
     city_label, lat, lon = parse_location(city, latitude, longitude)
-    provider, distance = find_nearest_provider(category, lat, lon)
+    worker, distance = find_nearest_worker(category, lat, lon)
 
-    if not provider:
+    if not worker:
         return jsonify(
             {
                 "service": category,
-                "reply": f"I detected '{category}'. No available technicians nearby right now.",
+                "reply": f"I detected '{category}'. No available workers nearby right now.",
             }
         )
 
@@ -254,15 +328,15 @@ def chatbot_api():
     return jsonify(
         {
             "service": category,
-            "reply": f"Detected {category}. Nearest technician: {provider.name}, {distance} km away.",
+            "reply": f"Detected {category}. Nearest worker: {worker.name}, {distance} km away.",
             "provider": {
-                "id": provider.id,
-                "name": provider.name,
+                "id": worker.id,
+                "name": worker.name,
                 "distance": distance,
-                "phone": provider.phone,
+                "phone": worker.phone,
                 "eta": eta,
-                "city": provider.city,
-                "rating": provider.rating,
+                "city": worker.city,
+                "rating": worker.rating,
             },
             "location": {"city": city_label, "latitude": lat, "longitude": lon},
         }
@@ -272,7 +346,7 @@ def chatbot_api():
 @app.route("/book", methods=["POST"])
 @login_required
 def book_service():
-    provider_id = request.form.get("provider_id", type=int)
+    worker_id = request.form.get("provider_id", type=int)
     issue = request.form.get("issue", "")
     category = request.form.get("category", "")
     city = request.form.get("city", "")
@@ -280,26 +354,35 @@ def book_service():
     longitude = request.form.get("longitude", type=float)
     payment_mode = request.form.get("payment_mode", "UPI")
 
-    provider = db.session.get(Provider, provider_id)
-    if not provider:
-        flash("Technician unavailable.", "danger")
+    worker = db.session.get(User, worker_id)
+    if not worker or worker.role != "worker":
+        flash("Worker unavailable.", "danger")
         return redirect(url_for("chat"))
 
     booking = Booking(
         booking_code=generate_booking_code(),
         user_id=current_user.id,
-        provider_id=provider.id,
+        worker_id=worker.id,
         issue_text=issue,
         detected_category=category,
         city=city,
         latitude=latitude,
         longitude=longitude,
-        distance_km=round(haversine_distance(latitude, longitude, provider.latitude, provider.longitude), 2),
+        distance_km=round(haversine_distance(latitude, longitude, worker.latitude, worker.longitude), 2),
         payment_mode=payment_mode,
         status="Assigned",
     )
     db.session.add(booking)
+    db.session.flush()
+
+    notification = Notification(
+        worker_id=worker.id,
+        booking_id=booking.id,
+        message=f"New issue from {current_user.name}: {issue}",
+    )
+    db.session.add(notification)
     db.session.commit()
+
     flash(f"Service booked successfully. Booking ID: {booking.booking_code}", "success")
     return redirect(url_for("dashboard"))
 
@@ -307,30 +390,43 @@ def book_service():
 @app.route("/admin", methods=["GET", "POST"])
 @login_required
 def admin_panel():
-    if not current_user.is_admin:
-        flash("Admin access required", "danger")
+    if not require_role("admin"):
         return redirect(url_for("dashboard"))
 
     if request.method == "POST":
-        provider = Provider(
-            name=request.form["name"],
-            category=request.form["category"],
-            city=request.form["city"],
+        name = request.form["name"].strip()
+        email = request.form["email"].strip().lower()
+        if User.query.filter_by(email=email).first():
+            flash("Worker email already exists", "danger")
+            return redirect(url_for("admin_panel"))
+
+        city = request.form["city"]
+        lat = request.form.get("latitude")
+        lon = request.form.get("longitude")
+        _, lat, lon = parse_location(city, lat, lon)
+
+        worker = User(
+            name=name,
+            email=email,
+            password_hash=generate_password_hash(request.form.get("password", "worker123")),
+            city=city,
+            role="worker",
+            service_category=request.form["category"],
             area=request.form.get("area"),
-            latitude=request.form.get("latitude", type=float),
-            longitude=request.form.get("longitude", type=float),
+            latitude=lat,
+            longitude=lon,
             phone=request.form["phone"],
             available=request.form.get("available") == "on",
             rating=request.form.get("rating", type=float) or 4.5,
         )
-        db.session.add(provider)
+        db.session.add(worker)
         db.session.commit()
-        flash("Technician added", "success")
+        flash("Worker added", "success")
         return redirect(url_for("admin_panel"))
 
-    providers = Provider.query.order_by(Provider.category.asc()).all()
+    workers = User.query.filter_by(role="worker").order_by(User.service_category.asc()).all()
     requests_data = Booking.query.order_by(Booking.created_at.desc()).all()
-    return render_template("admin.html", providers=providers, requests_data=requests_data)
+    return render_template("admin.html", providers=workers, requests_data=requests_data)
 
 
 def seed_data():
@@ -340,21 +436,22 @@ def seed_data():
             email="admin@smarthome.com",
             password_hash=generate_password_hash("admin123"),
             city="New York",
-            is_admin=True,
+            role="admin",
         )
         db.session.add(admin)
 
-    if Provider.query.count() == 0:
-        providers = [
-            Provider(name="Alex Sparks", category="electrical", city="New York", area="Queens", latitude=40.7282, longitude=-73.7949, phone="+1-555-1001", available=True, rating=4.7),
-            Provider(name="Mia Pipes", category="plumbing", city="New York", area="Brooklyn", latitude=40.6782, longitude=-73.9442, phone="+1-555-1002", available=True, rating=4.6),
-            Provider(name="Noah Wood", category="carpentry", city="Chicago", area="Loop", latitude=41.8837, longitude=-87.6325, phone="+1-555-1003", available=True, rating=4.8),
-            Provider(name="Ella Colors", category="painting", city="San Francisco", area="Sunset", latitude=37.7599, longitude=-122.4148, phone="+1-555-1004", available=True, rating=4.4),
-            Provider(name="Ava Stone", category="masonry", city="Austin", area="Downtown", latitude=30.2676, longitude=-97.7429, phone="+1-555-1005", available=True, rating=4.5),
-            Provider(name="Liam Fresh", category="cleaning", city="Seattle", area="Capitol Hill", latitude=47.6231, longitude=-122.3197, phone="+1-555-1006", available=True, rating=4.9),
-            Provider(name="Olivia Fixit", category="appliance repair", city="Chicago", area="Hyde Park", latitude=41.7943, longitude=-87.5907, phone="+1-555-1007", available=True, rating=4.7),
+    if User.query.filter_by(role="worker").count() == 0:
+        workers = [
+            User(name="Alex Sparks", email="alex@smarthome.com", password_hash=generate_password_hash("worker123"), city="New York", role="worker", service_category="electrical", area="Queens", latitude=40.7282, longitude=-73.7949, phone="+1-555-1001", available=True, rating=4.7),
+            User(name="Mia Pipes", email="mia@smarthome.com", password_hash=generate_password_hash("worker123"), city="New York", role="worker", service_category="plumbing", area="Brooklyn", latitude=40.6782, longitude=-73.9442, phone="+1-555-1002", available=True, rating=4.6),
+            User(name="Noah Wood", email="noah@smarthome.com", password_hash=generate_password_hash("worker123"), city="Chicago", role="worker", service_category="carpentry", area="Loop", latitude=41.8837, longitude=-87.6325, phone="+1-555-1003", available=True, rating=4.8),
+            User(name="Ella Colors", email="ella@smarthome.com", password_hash=generate_password_hash("worker123"), city="San Francisco", role="worker", service_category="painting", area="Sunset", latitude=37.7599, longitude=-122.4148, phone="+1-555-1004", available=True, rating=4.4),
+            User(name="Ava Stone", email="ava@smarthome.com", password_hash=generate_password_hash("worker123"), city="Austin", role="worker", service_category="masonry", area="Downtown", latitude=30.2676, longitude=-97.7429, phone="+1-555-1005", available=True, rating=4.5),
+            User(name="Liam Fresh", email="liam@smarthome.com", password_hash=generate_password_hash("worker123"), city="Seattle", role="worker", service_category="cleaning", area="Capitol Hill", latitude=47.6231, longitude=-122.3197, phone="+1-555-1006", available=True, rating=4.9),
+            User(name="Olivia Fixit", email="olivia@smarthome.com", password_hash=generate_password_hash("worker123"), city="Chicago", role="worker", service_category="appliance repair", area="Hyde Park", latitude=41.7943, longitude=-87.5907, phone="+1-555-1007", available=True, rating=4.7),
         ]
-        db.session.add_all(providers)
+        db.session.add_all(workers)
+
     db.session.commit()
 
 

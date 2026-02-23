@@ -12,7 +12,7 @@
       <th>Booking ID</th>
       <th>Issue</th>
       <th>Category</th>
-      <th>Technician</th>
+      <th>Assigned Worker</th>
       <th>Status</th>
       <th>Payment</th>
     </tr>
@@ -23,7 +23,7 @@
         <td>{{ booking.booking_code }}</td>
         <td>{{ booking.issue_text }}</td>
         <td>{{ booking.detected_category }}</td>
-        <td>{{ booking.provider.name if booking.provider else 'Pending' }}</td>
+        <td>{{ booking.worker.name if booking.worker else 'Pending' }}</td>
         <td>{{ booking.status }}</td>
         <td>{{ booking.payment_mode }}</td>
       </tr>

@@ -4,7 +4,7 @@ A complete Flask web application that connects users with nearby home service pr
 
 ## Features
 
-- User authentication (register/login/logout)
+- User + Worker + Admin authentication (register/login/logout)
 - AI chatbot with keyword-based NLP intent detection
 - Location-based nearest technician assignment (Haversine distance)
 - Multi-service categories:
@@ -17,6 +17,7 @@ A complete Flask web application that connects users with nearby home service pr
   - Appliance repair
 - Service booking with booking ID and payment mode
 - User dashboard for tracking and history
+- Worker dashboard with booking notifications when users raise nearby issues
 - Admin panel for technician and request management
 - Responsive light-blue modern UI
 
@@ -70,3 +71,10 @@ static/css/style.css
 static/js/chat.js
 requirements.txt
 ```
+
+
+## Role flows
+
+- **User**: Register/login, chat with AI, detect service, nearest worker assignment, book service.
+- **Worker**: Register/login as worker, receive notifications in Worker Dashboard when users book issues nearby.
+- **Admin**: Add/manage worker accounts and monitor all service requests.
