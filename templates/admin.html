@@ -3,8 +3,10 @@
 <h2>Admin Panel</h2>
 <div class="chat-layout">
   <form method="post" class="form-card">
-    <h3>Add / Update Technician</h3>
+    <h3>Add Worker</h3>
     <input name="name" placeholder="Name" required>
+    <input name="email" type="email" placeholder="Worker email" required>
+    <input name="password" placeholder="Temporary password" value="worker123" required>
     <select name="category" required>
       <option value="electrical">Electrical</option>
       <option value="plumbing">Plumbing</option>
@@ -17,29 +19,29 @@
     <input name="city" placeholder="City" required>
     <input name="area" placeholder="Area">
     <div class="two-cols">
-      <input name="latitude" placeholder="Latitude" required>
-      <input name="longitude" placeholder="Longitude" required>
+      <input name="latitude" placeholder="Latitude">
+      <input name="longitude" placeholder="Longitude">
     </div>
     <input name="phone" placeholder="Phone" required>
     <input name="rating" placeholder="Rating" value="4.5">
     <label><input type="checkbox" name="available" checked> Available</label>
-    <button class="btn" type="submit">Save Technician</button>
+    <button class="btn" type="submit">Save Worker</button>
   </form>
 
   <div>
-    <h3>Technicians</h3>
+    <h3>Workers</h3>
     <div class="table-wrap"><table>
-      <tr><th>Name</th><th>Category</th><th>City</th><th>Phone</th><th>Avail.</th><th>Rating</th></tr>
+      <tr><th>Name</th><th>Email</th><th>Service</th><th>City</th><th>Phone</th><th>Avail.</th><th>Rating</th></tr>
       {% for p in providers %}
-      <tr><td>{{ p.name }}</td><td>{{ p.category }}</td><td>{{ p.city }}</td><td>{{ p.phone }}</td><td>{{ 'Yes' if p.available else 'No' }}</td><td>{{ p.rating }}</td></tr>
+      <tr><td>{{ p.name }}</td><td>{{ p.email }}</td><td>{{ p.service_category }}</td><td>{{ p.city }}</td><td>{{ p.phone }}</td><td>{{ 'Yes' if p.available else 'No' }}</td><td>{{ p.rating }}</td></tr>
       {% endfor %}
     </table></div>
 
     <h3>Recent Service Requests</h3>
     <div class="table-wrap"><table>
-      <tr><th>Booking ID</th><th>User</th><th>Technician</th><th>Status</th><th>Created</th></tr>
+      <tr><th>Booking ID</th><th>User</th><th>Worker</th><th>Status</th><th>Created</th></tr>
       {% for b in requests_data %}
-      <tr><td>{{ b.booking_code }}</td><td>{{ b.user.name }}</td><td>{{ b.provider.name if b.provider else '-' }}</td><td>{{ b.status }}</td><td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td></tr>
+      <tr><td>{{ b.booking_code }}</td><td>{{ b.user.name }}</td><td>{{ b.worker.name if b.worker else '-' }}</td><td>{{ b.status }}</td><td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td></tr>
       {% endfor %}
     </table></div>
   </div>
