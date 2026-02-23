@@ -2,6 +2,8 @@ const analyzeBtn = document.getElementById('analyzeBtn');
 const voiceBtn = document.getElementById('voiceBtn');
 const voiceStatus = document.getElementById('voiceStatus');
 const messageInput = document.getElementById('message');
+const locationBtn = document.getElementById('locationBtn');
+const locationStatus = document.getElementById('locationStatus');
 const output = document.getElementById('chatOutput');
 const bookingForm = document.getElementById('bookingForm');
 
@@ -83,3 +85,29 @@ if (SpeechRecognition) {
   voiceStatus.textContent = 'Voice commands are not supported in this browser.';
   if (voiceBtn) voiceBtn.disabled = true;
 }
+
+locationBtn?.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    locationStatus.textContent = 'Geolocation not supported. Please enter city manually.';
+    return;
+  }
+
+  locationStatus.textContent = 'Fetching your current location...';
+  locationBtn.disabled = true;
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const { latitude, longitude } = position.coords;
+      document.getElementById('latitude').value = latitude.toFixed(6);
+      document.getElementById('longitude').value = longitude.toFixed(6);
+      locationStatus.textContent = `Location captured: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      locationBtn.disabled = false;
+      addBubble('📍 Location captured from GPS. You can now detect nearest technician.', 'bot');
+    },
+    () => {
+      locationStatus.textContent = 'Could not get location. Please allow permission or enter city manually.';
+      locationBtn.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+});

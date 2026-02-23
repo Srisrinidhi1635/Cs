@@ -59,3 +59,5 @@ th { background:#f0f7ff; }
 
 .voice-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
 .voice-status { font-size:.85rem; color:#406283; }
+
+.voice-row .btn { white-space: nowrap; }
