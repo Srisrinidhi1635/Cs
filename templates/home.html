@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="hero-badge">AI + Location Intelligence</p>
+    <h1>Book trusted home services in minutes</h1>
+    <p class="hero-sub">From electrical and plumbing to painting and appliance repair, our assistant detects your issue and assigns the nearest available technician instantly.</p>
+    <div class="hero-actions">
+      {% if current_user.is_authenticated %}
+        <a class="btn" href="{{ url_for('chat') }}">Open AI Chatbot</a>
+        <a class="btn btn-ghost" href="{{ url_for('dashboard') }}">View Dashboard</a>
+      {% else %}
+        <a class="btn" href="{{ url_for('register') }}">Create Free Account</a>
+        <a class="btn btn-ghost" href="{{ url_for('login') }}">Login</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="hero-card card">
+    <h3>How it works</h3>
+    <ol>
+      <li>Describe the issue in chat.</li>
+      <li>Share city or GPS location.</li>
+      <li>Get nearest verified technician.</li>
+      <li>Confirm booking with UPI/Cash.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2>Available Services</h2>
+  <div class="card-grid">
+    <div class="card">⚡ Electrical Works</div>
+    <div class="card">🚿 Plumbing</div>
+    <div class="card">🪚 Carpentry</div>
+    <div class="card">🎨 Painting</div>
+    <div class="card">🧱 Masonry</div>
+    <div class="card">🧼 Cleaning</div>
+    <div class="card">🔧 Appliance Repair</div>
+  </div>
+</section>
+{% endblock %}
