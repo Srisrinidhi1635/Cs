@@ -193,6 +193,7 @@ def register():
         email = request.form["email"].strip().lower()
         password = request.form["password"]
         city = request.form.get("city", "")
+        phone = request.form.get("phone", "")
 
         if User.query.filter_by(email=email).first():
             flash("Email already registered", "danger")
@@ -204,6 +205,7 @@ def register():
             password_hash=generate_password_hash(password),
             city=city,
             role=role,
+            phone=phone or None,
         )
 
         if role == "worker":
@@ -232,16 +234,37 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form["email"].strip().lower()
-        password = request.form["password"]
-        user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password_hash, password):
-            login_user(user)
-            flash("Welcome back!", "success")
-            if user.role == "worker":
-                return redirect(url_for("worker_dashboard"))
-            return redirect(url_for("dashboard"))
-        flash("Invalid credentials", "danger")
+        role = request.form.get("role", "user").strip().lower()
+        identifier = request.form.get("identifier", "").strip()
+        password = request.form.get("password", "")
+
+        if not identifier or not password:
+            flash("Please provide login ID and password.", "danger")
+            return render_template("login.html")
+
+        normalized = identifier.lower()
+        user = User.query.filter(
+            (db.func.lower(User.email) == normalized) | (User.phone == identifier)
+        ).first()
+
+        if not user or not check_password_hash(user.password_hash, password):
+            flash("Invalid credentials", "danger")
+            return render_template("login.html")
+
+        if role == "worker" and user.role != "worker":
+            flash("This account is not registered as a worker.", "danger")
+            return render_template("login.html")
+
+        if role == "user" and user.role == "worker":
+            flash("Please use Worker Login for worker accounts.", "danger")
+            return render_template("login.html")
+
+        login_user(user)
+        flash("Welcome back!", "success")
+        if user.role == "worker":
+            return redirect(url_for("worker_dashboard"))
+        return redirect(url_for("dashboard"))
+
     return render_template("login.html")
 
 

@@ -28,8 +28,16 @@
 <script>
   const roleSelect = document.getElementById('roleSelect');
   const workerFields = document.getElementById('workerFields');
-  roleSelect.addEventListener('change', () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('role') === 'worker') {
+    roleSelect.value = 'worker';
+  }
+
+  function syncWorkerFields() {
     workerFields.classList.toggle('hidden', roleSelect.value !== 'worker');
-  });
+  }
+
+  roleSelect.addEventListener('change', syncWorkerFields);
+  syncWorkerFields();
 </script>
 {% endblock %}

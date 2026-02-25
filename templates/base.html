@@ -4,9 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Home Service Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="site-header">
     <nav class="navbar container">
       <a href="{{ url_for('home') }}" class="brand">🏠 Smart Home Service Assistant</a>
@@ -28,7 +30,7 @@
     </nav>
   </header>
 
-  <main class="container app-main">
+  <main id="main-content" class="container app-main">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
