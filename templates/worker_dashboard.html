@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Worker Dashboard - {{ current_user.name }}</h2>
+<p>Notifications are sent here whenever a user books an issue near your location.</p>
+
+<h3>New Issue Notifications</h3>
+<div class="table-wrap"><table>
+  <tr><th>Time</th><th>Message</th><th>Status</th><th>Action</th></tr>
+  {% for n in notifications %}
+  <tr>
+    <td>{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>{{ n.message }}</td>
+    <td>{{ 'Read' if n.is_read else 'Unread' }}</td>
+    <td>
+      {% if not n.is_read %}
+      <form method="post" action="{{ url_for('mark_notification_read', notification_id=n.id) }}">
+        <button class="btn btn-ghost" type="submit">Mark Read</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">No notifications yet.</td></tr>
+  {% endfor %}
+</table></div>
+
+<h3>Assigned User Issues</h3>
+<div class="table-wrap"><table>
+  <tr><th>Booking ID</th><th>User</th><th>Issue</th><th>City</th><th>Distance</th><th>Payment</th><th>Status</th></tr>
+  {% for b in bookings %}
+  <tr>
+    <td>{{ b.booking_code }}</td>
+    <td>{{ b.user.name }}</td>
+    <td>{{ b.issue_text }}</td>
+    <td>{{ b.city }}</td>
+    <td>{{ b.distance_km }} km</td>
+    <td>{{ b.payment_mode }}</td>
+    <td>{{ b.status }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">No assigned bookings yet.</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}
